@@ -1,5 +1,5 @@
 # -*- mode: org; fill-column: 78; -*-
-# Time-stamp: <2021-07-23 17:05:26 krylon>
+# Time-stamp: <2021-07-24 00:57:48 krylon>
 #
 #+TAGS: optimize(o) refactor(r) bug(b) feature(f) architecture(a)
 #+TAGS: web(w) database(d) javascript(j)
@@ -8,13 +8,25 @@
 #+PRIORITIES: A G D
 
 * DWD
+  DWD is an application to fetch weather warnings from the Deutscher
+  Wetterdienst and display them to the user in some way.
 ** Clocktable
    #+BEGIN: clocktable :scope file :maxlevel 20
-   #+CAPTION: Clock summary at [2021-07-23 Fr 17:04]
-   | Headline     | Time   |
-   |--------------+--------|
-   | *Total time* | *0:00* |
+   #+CAPTION: Clock summary at [2021-07-24 Sa 00:57]
+   | Headline     | Time   |      |
+   |--------------+--------+------|
+   | *Total time* | *7:17* |      |
+   |--------------+--------+------|
+   | DWD          | 7:17   |      |
+   | \_  Client   |        | 7:17 |
    #+END:
+** Client
+   :LOGBOOK:
+   CLOCK: [2021-07-23 Fr 17:40]--[2021-07-24 Sa 00:57] =>  7:17
+   :END:
+   
 ** Database
-** Web service
+   In the long term, I want to store weather warnings, even though I don't
+   know yet what I would do with that information.
+** User interface
 
