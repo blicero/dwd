@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-23 21:46:15 krylon>
+// Time-stamp: <2021-07-24 12:16:57 krylon>
 
 package data
 
@@ -32,7 +32,7 @@ func TestClientFetch(t *testing.T) {
 
 	if data, err = c.FetchWarning(); err != nil {
 		t.Errorf("Failed to fetch weather warnings data: %s", err.Error())
-	} else {
-		t.Logf("Fetched data: %s", data)
+	} else if data == nil {
+		t.Error("Client returned no error, but data is nil")
 	}
 } // func TestClientFetch(t *testing.T)

@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-24 00:29:31 krylon>
+// Time-stamp: <2021-07-24 12:16:11 krylon>
 
 // Package data implements the client to the DWD's web service, it fetches and
 // processes the warning data.
@@ -14,6 +14,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
+	"os"
 	"regexp"
 	"time"
 
@@ -48,43 +50,28 @@ func New(proxy string) (*Client, error) {
 
 	c.client.Timeout = time.Second * 30
 
-	// c.client.CheckRedirect = func(r *http.Request, via []*http.Request) error {
-	// 	if common.Debug {
-	// 		var x = via[len(via)-1]
-	// 		c.log.Printf("[DEBUG] HTTP Redirect from %s to %s\n",
-	// 			x.URL,
-	// 			r.URL)
-	// 	}
+	if proxy != "" {
+		var u *url.URL
+		if u, err = url.Parse(proxy); err != nil {
+			c.log.Printf("[ERROR] Cannot parse proxy URL %q: %s\n",
+				proxy,
+				err.Error())
+			return nil, err
+		}
 
-	// 	if len(via) > 50 {
-	// 		return http.ErrUseLastResponse
-	// 	}
+		var pfunc = func(r *http.Request) (*url.URL, error) { return u, nil }
 
-	// 	return nil
-	// }
+		switch t := c.client.Transport.(type) {
+		case *http.Transport:
+			t.Proxy = pfunc
+		default:
+			err = fmt.Errorf("Unexpected type for HTTP Client Transport: %T",
+				c.client.Transport)
+			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+			return nil, err
+		}
 
-	// if proxy != "" {
-	// 	var u *url.URL
-	// 	if u, err = url.Parse(proxy); err != nil {
-	// 		c.log.Printf("[ERROR] Cannot parse proxy URL %q: %s\n",
-	// 			proxy,
-	// 			err.Error())
-	// 		return nil, err
-	// 	}
-
-	// 	var pfunc = func(r *http.Request) (*url.URL, error) { return u, nil }
-
-	// 	switch t := c.client.Transport.(type) {
-	// 	case *http.Transport:
-	// 		t.Proxy = pfunc
-	// 	default:
-	// 		err = fmt.Errorf("Unexpected type for HTTP Client Transport: %T",
-	// 			c.client.Transport)
-	// 		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
-	// 		return nil, err
-	// 	}
-
-	// }
+	}
 
 	return c, nil
 } // func New(proxy string) (*Client, error)
@@ -118,31 +105,13 @@ func (c *Client) FetchWarning() ([]byte, error) {
 		return nil, err
 	}
 
-	// if res.ContentLength < 1 {
-	// 	bufsize = 4096
-	// } else {
-	// 	bufsize = int(res.ContentLength)
-	// }
-
-	// When performing the request manually, I get a Content-Length header,
-	// so I'll naively assume this is always present.
-	// body = make([]byte, bufsize+10)
-
-	// if n, err = res.Body.Read(body[:]); err != nil {
-	// 	c.log.Printf("[ERROR] Failed to read HTTP response from %q: %s\n",
-	// 		warnURL,
-	// 		err.Error())
-	// 	return nil, err
-	// }
-
 	body = buf.Bytes()
 
-	c.log.Printf("[DEBUG] Response from %s: %s (%d bytes of pure %s)\n%q\n",
+	c.log.Printf("[DEBUG] Response from %s: %s (%d bytes of pure %s)\n",
 		warnURL,
 		res.Status,
 		n,
-		res.Header.Get("Content-Type"),
-		body[:n])
+		res.Header.Get("Content-Type"))
 
 	var match [][]byte
 
@@ -156,8 +125,8 @@ func (c *Client) FetchWarning() ([]byte, error) {
 
 	var data = match[1]
 
-	c.log.Printf("[DEBUG] Received response from DWD: %s\n",
-		data)
+	// c.log.Printf("[DEBUG] Received response from DWD: %s\n",
+	// 	data)
 
 	return data, nil
 } // func (c *Client) FetchWarning() ([]byte, error)
