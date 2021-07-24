@@ -1,5 +1,5 @@
 # -*- mode: org; fill-column: 78; -*-
-# Time-stamp: <2021-07-24 00:57:48 krylon>
+# Time-stamp: <2021-07-24 18:23:53 krylon>
 #
 #+TAGS: optimize(o) refactor(r) bug(b) feature(f) architecture(a)
 #+TAGS: web(w) database(d) javascript(j)
@@ -12,16 +12,18 @@
   Wetterdienst and display them to the user in some way.
 ** Clocktable
    #+BEGIN: clocktable :scope file :maxlevel 20
-   #+CAPTION: Clock summary at [2021-07-24 Sa 00:57]
-   | Headline     | Time   |      |
-   |--------------+--------+------|
-   | *Total time* | *7:17* |      |
-   |--------------+--------+------|
-   | DWD          | 7:17   |      |
-   | \_  Client   |        | 7:17 |
+   #+CAPTION: Clock summary at [2021-07-24 Sa 18:23]
+   | Headline     | Time    |       |
+   |--------------+---------+-------|
+   | *Total time* | *10:10* |       |
+   |--------------+---------+-------|
+   | DWD          | 10:10   |       |
+   | \_  Client   |         | 10:10 |
    #+END:
 ** Client
    :LOGBOOK:
+   CLOCK: [2021-07-24 Sa 16:20]--[2021-07-24 Sa 18:23] =>  2:03
+   CLOCK: [2021-07-24 Sa 09:55]--[2021-07-24 Sa 10:45] =>  0:50
    CLOCK: [2021-07-23 Fr 17:40]--[2021-07-24 Sa 00:57] =>  7:17
    :END:
    
