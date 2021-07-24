@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 24. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-24 18:22:06 krylon>
+// Time-stamp: <2021-07-24 22:27:56 krylon>
 
 package data
 
@@ -35,6 +35,17 @@ func TestParseJSON(t *testing.T) {
 				"Schwarzwald-Baar-Kreis",
 				"Kreis Trier-Saarburg und Stadt Trier",
 				"Kreis Garmisch-Partenkirchen",
+			},
+		},
+		parseTestCase{
+			path: "testdata/warnings.3.json",
+			expectLocations: []string{
+				"Kreis Ludwigsburg",
+				"Kreis Vechta",
+				"Kreis und Stadt Heilbronn",
+				"Elbe von Hamburg bis Cuxhaven",
+				"Helgoland",
+				"Kreis Berchtesgadener Land",
 			},
 		},
 	}
