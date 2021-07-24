@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-24 12:16:11 krylon>
+// Time-stamp: <2021-07-24 22:45:59 krylon>
 
 // Package data implements the client to the DWD's web service, it fetches and
 // processes the warning data.
@@ -10,6 +10,7 @@ package data
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -32,13 +33,14 @@ var respPattern = regexp.MustCompile(`^warnWetter.loadWarnings\((.*)\);$`)
 
 // Client implements the communication with the DWD's web service and the handling of the response.
 type Client struct {
-	log    *log.Logger
-	client http.Client
+	log       *log.Logger
+	client    http.Client
+	locations map[*regexp.Regexp]bool
 }
 
 // New creates a new Client. If proxy is a non-empty string, it is used as the
 // URL of the proxy server to use for accessing the DWD's web service.
-func New(proxy string) (*Client, error) {
+func New(proxy string, locations ...string) (*Client, error) {
 	var (
 		err error
 		c   = new(Client)
@@ -73,8 +75,67 @@ func New(proxy string) (*Client, error) {
 
 	}
 
+	c.locations = make(map[*regexp.Regexp]bool, len(locations))
+
+	for _, l := range locations {
+		var r *regexp.Regexp
+
+		if r, err = regexp.Compile(l); err != nil {
+			c.log.Printf("[ERROR] Cannot compile Regexp %q: %s\n",
+				l,
+				err.Error())
+			return nil, err
+		}
+
+		c.locations[r] = true
+	}
+
 	return c, nil
 } // func New(proxy string) (*Client, error)
+
+// ProcessWarnings parses the warnings returned by the DWD's web service and
+// returns a list of all the warnings that are relevant to us.
+func (c *Client) ProcessWarnings(raw []byte) ([]Warning, error) {
+	var (
+		err  error
+		info WeatherInfo
+	)
+
+	if err = json.Unmarshal(raw, &info); err != nil {
+		c.log.Printf("[ERROR] Cannot parse JSON data: %s\n%s\n",
+			err.Error(),
+			raw)
+		return nil, err
+	}
+
+	var list = make([]Warning, 0, len(c.locations)*2)
+
+	for _, i := range info.Warnings {
+	W_ITEM:
+		for _, w := range i {
+			for l := range c.locations {
+				if l.MatchString(w.Location) {
+					list = append(list, w)
+					continue W_ITEM
+				}
+			}
+		}
+	}
+
+	for _, i := range info.PrelimWarnings {
+	V_ITEM:
+		for _, w := range i {
+			for l := range c.locations {
+				if l.MatchString(w.Location) {
+					list = append(list, w)
+					continue V_ITEM
+				}
+			}
+		}
+	}
+
+	return list, nil
+} // func ProcessWarnings(raw []byte) ([]Warning, error)
 
 // FetchWarning fetches the warning data from the DWD's web service.
 func (c *Client) FetchWarning() ([]byte, error) {
