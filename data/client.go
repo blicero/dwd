@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-24 22:45:59 krylon>
+// Time-stamp: <2021-07-24 23:29:56 krylon>
 
 // Package data implements the client to the DWD's web service, it fetches and
 // processes the warning data.
@@ -140,11 +140,10 @@ func (c *Client) ProcessWarnings(raw []byte) ([]Warning, error) {
 // FetchWarning fetches the warning data from the DWD's web service.
 func (c *Client) FetchWarning() ([]byte, error) {
 	var (
-		err  error
-		n    int64
-		res  *http.Response
-		buf  bytes.Buffer
-		body []byte
+		err error
+		n   int64
+		res *http.Response
+		buf bytes.Buffer
 	)
 
 	if res, err = c.client.Get(warnURL); err != nil {
@@ -153,26 +152,29 @@ func (c *Client) FetchWarning() ([]byte, error) {
 			err.Error())
 	}
 
-	c.log.Printf("[DEBUG] Response for %q: %s\n",
-		warnURL,
-		res.Status)
-
 	defer res.Body.Close() // nolint: errcheck
 
-	if n, err = io.Copy(&buf, res.Body); err != nil {
+	if res.StatusCode != 200 {
+		c.log.Printf("[DEBUG] Response for %q: %s\n",
+			warnURL,
+			res.Status)
+		return nil, fmt.Errorf("HTTP Request to %q failed: %s",
+			warnURL,
+			res.Status)
+	} else if n, err = io.Copy(&buf, res.Body); err != nil {
 		c.log.Printf("[ERROR] Cannot read response Body for %q: %s\n",
 			warnURL,
 			err.Error())
 		return nil, err
 	}
 
-	body = buf.Bytes()
+	var body = buf.Bytes()
 
-	c.log.Printf("[DEBUG] Response from %s: %s (%d bytes of pure %s)\n",
-		warnURL,
-		res.Status,
-		n,
-		res.Header.Get("Content-Type"))
+	// c.log.Printf("[DEBUG] Response from %s: %s (%d bytes of pure %s)\n",
+	// 	warnURL,
+	// 	res.Status,
+	// 	n,
+	// 	res.Header.Get("Content-Type"))
 
 	var match [][]byte
 
