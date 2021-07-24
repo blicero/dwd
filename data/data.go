@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 24. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-24 12:17:54 krylon>
+// Time-stamp: <2021-07-24 16:29:50 krylon>
 
 package data
 
@@ -25,8 +25,8 @@ type Warning struct {
 
 // WeatherInfo represetns an aggregate of warnings issued by the DWD at a given time.
 type WeatherInfo struct {
-	Time           int64                `json:"time"`
-	Warnings       map[string][]Warning `json:"warnings"`
-	PrelimWarnings map[string][]Warning `json:"vorabInformation"`
-	Copyright      string               `json:"copyright"`
+	Time           int64               `json:"time"`
+	Warnings       map[int64][]Warning `json:"warnings"`
+	PrelimWarnings map[int64][]Warning `json:"vorabInformation"`
+	Copyright      string              `json:"copyright"`
 }

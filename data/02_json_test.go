@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 24. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-24 12:14:49 krylon>
+// Time-stamp: <2021-07-24 18:22:06 krylon>
 
 package data
 
@@ -15,30 +15,88 @@ import (
 )
 
 func TestParseJSON(t *testing.T) {
-	const path = "testdata/warnings.1.json"
-	var (
-		err  error
-		fh   *os.File
-		buf  bytes.Buffer
-		info WeatherInfo
-	)
-
-	if fh, err = os.Open(path); err != nil {
-		t.Fatalf("Error opening %s: %s",
-			path,
-			err.Error())
+	type parseTestCase struct {
+		path            string
+		expectError     bool
+		expectLocations []string
 	}
 
-	defer fh.Close() // nolint: errcheck
+	var cases = []parseTestCase{
+		parseTestCase{
+			path: "testdata/warnings.1.json",
+			expectLocations: []string{
+				"Starnberger See",
+				"Kreis Trier-Saarburg und Stadt Trier",
+			},
+		},
+		parseTestCase{
+			path: "testdata/warnings.2.json",
+			expectLocations: []string{
+				"Schwarzwald-Baar-Kreis",
+				"Kreis Trier-Saarburg und Stadt Trier",
+				"Kreis Garmisch-Partenkirchen",
+			},
+		},
+	}
 
-	if _, err = io.Copy(&buf, fh); err != nil {
-		t.Fatalf("Error reading %s: %s",
-			path,
-			err.Error())
-	} else if err = json.Unmarshal(buf.Bytes(), &info); err != nil {
-		t.Fatalf("Error parsing %s: %s",
-			path,
-			err.Error())
+	for _, c := range cases {
+		var (
+			err  error
+			fh   *os.File
+			buf  bytes.Buffer
+			info WeatherInfo
+		)
+
+		if fh, err = os.Open(c.path); err != nil {
+			t.Errorf("Error opening %s: %s",
+				c.path,
+				err.Error())
+			continue
+		}
+
+		defer fh.Close() // nolint: errcheck
+
+		if _, err = io.Copy(&buf, fh); err != nil {
+			t.Errorf("Error reading %s: %s",
+				c.path,
+				err.Error())
+			continue
+		} else if err = json.Unmarshal(buf.Bytes(), &info); err != nil {
+			if !c.expectError {
+				t.Errorf("Error parsing %s: %s",
+					c.path,
+					err.Error())
+			}
+			continue
+		}
+
+		var locations = make(map[string]int, len(c.expectLocations))
+		for _, l := range c.expectLocations {
+			locations[l] = 0
+		}
+
+		for _, l := range info.Warnings {
+			for _, i := range l {
+				if _, ok := locations[i.Location]; ok {
+					locations[i.Location]++
+				}
+			}
+		}
+
+		for _, l := range info.PrelimWarnings {
+			for _, i := range l {
+				if _, ok := locations[i.Location]; ok {
+					locations[i.Location]++
+				}
+			}
+		}
+
+		for l, cnt := range locations {
+			if cnt == 0 {
+				t.Errorf("No hits for Location %s",
+					l)
+			}
+		}
 	}
 
 } // func TestParseJSON(t *testing.T)
