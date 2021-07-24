@@ -1,8 +1,8 @@
-// /home/krylon/go/src/ticker/build.go
+// /home/krylon/go/src/github.com/blicero/dwd//build.go
 // -*- mode: go; coding: utf-8; -*-
 // Created on 01. 02. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-24 18:25:51 krylon>
+// Time-stamp: <2021-07-24 18:35:45 krylon>
 
 // +build ignore
 
@@ -31,8 +31,12 @@ import (
 	"github.com/hashicorp/logutils"
 )
 
-const logFile = "./dbg.build.log"
-const lintCommand = "mygolint"
+const (
+	logFile     = "./dbg.build.log"
+	lintCommand = "mygolint"
+	pkgName     = "github.com/blicero/dwd"
+	appName     = "dwd"
+)
 
 var logLevels = []logutils.LogLevel{
 	"TRACE",
@@ -220,7 +224,7 @@ This flag is not case-sensitive.`, strings.Join(orderedSteps, ", ")))
 	if steps["build"] {
 		var output []byte
 
-		dbg.Println("[INFO] Building ticker\n")
+		dbg.Println("[INFO] Building dwd\n")
 
 		// Put aside a possibly existing binary
 		if err = backupExecutable(); err != nil {
@@ -233,7 +237,8 @@ This flag is not case-sensitive.`, strings.Join(orderedSteps, ", ")))
 		var sWorkerCnt = strconv.FormatInt(int64(workerCnt), 10)
 		var cmd = exec.Command("go", "build", "-v", "-p", sWorkerCnt)
 		if output, err = cmd.CombinedOutput(); err != nil {
-			dbg.Printf("[ERROR] Error building ticker: %s\n%s\n",
+			dbg.Printf("[ERROR] Error building %s: %s\n%s\n",
+				appName,
 				err.Error(),
 				output)
 			os.Exit(1)
@@ -336,7 +341,7 @@ func worker(n int, op string, pkgq <-chan string, errq chan<- error, wg *sync.Wa
 	defer wg.Done()
 
 	for folder := range pkgq {
-		pkg = "ticker/" + folder
+		pkg = pkgName + "/" + folder
 		dbg.Printf("[TRACE] Worker %d call %s on %s\n",
 			n,
 			op,
@@ -427,7 +432,7 @@ func initLog(min string) error {
 		writer io.Writer
 		// Trailing space because Logger does not seem to insert one
 		// between fields of the line.
-		logName = "ticker.build "
+		logName = fmt.Sprintf("%s.build ", appName)
 	)
 
 	// fmt.Printf("Creating Logger with minLevel = %q\n",
@@ -457,8 +462,8 @@ func initLog(min string) error {
 
 func backupExecutable() error {
 	const (
-		execPath   = "ticker"
-		backupPath = "bak.ticker"
+		execPath   = appName
+		backupPath = "bak." + appName
 	)
 	var (
 		exists bool
