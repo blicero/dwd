@@ -2,18 +2,23 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-24 12:16:57 krylon>
+// Time-stamp: <2021-07-25 17:19:37 krylon>
 
 package data
 
-import "testing"
+import (
+	"bytes"
+	"io"
+	"os"
+	"testing"
+)
 
 var c *Client
 
 func TestClientCreate(t *testing.T) {
 	var err error
 
-	if c, err = New(""); err != nil {
+	if c, err = New("", "Bielefeld", "Berchtesgaden", "Diepholz"); err != nil {
 		c = nil
 		t.Fatalf("Failed to create Client: %s",
 			err.Error())
@@ -36,3 +41,41 @@ func TestClientFetch(t *testing.T) {
 		t.Error("Client returned no error, but data is nil")
 	}
 } // func TestClientFetch(t *testing.T)
+
+func TestClientProcess(t *testing.T) {
+	if c == nil {
+		t.SkipNow()
+	}
+
+	const path = "testdata/warnings.3.json"
+
+	var (
+		err error
+		fh  *os.File
+		buf bytes.Buffer
+	)
+
+	if fh, err = os.Open(path); err != nil {
+		t.Fatalf("Cannot open %s for reading: %s",
+			path,
+			err.Error())
+	}
+
+	defer fh.Close()
+
+	if _, err = io.Copy(&buf, fh); err != nil {
+		t.Fatalf("Error reading %s: %s",
+			path,
+			err.Error())
+	}
+
+	var info []Warning
+
+	if info, err = c.ProcessWarnings(buf.Bytes()); err != nil {
+		t.Fatalf("Error processing response data from %s: %s",
+			path,
+			err.Error())
+	} else if len(info) == 0 {
+		t.Fatal("ProcessWarnings returned empty result list")
+	}
+} // func TestClientProcess(t *testing.T)

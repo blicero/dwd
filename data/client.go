@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-24 23:29:56 krylon>
+// Time-stamp: <2021-07-25 00:55:05 krylon>
 
 // Package data implements the client to the DWD's web service, it fetches and
 // processes the warning data.
@@ -35,7 +35,7 @@ var respPattern = regexp.MustCompile(`^warnWetter.loadWarnings\((.*)\);$`)
 type Client struct {
 	log       *log.Logger
 	client    http.Client
-	locations map[*regexp.Regexp]bool
+	locations []*regexp.Regexp
 }
 
 // New creates a new Client. If proxy is a non-empty string, it is used as the
@@ -75,10 +75,12 @@ func New(proxy string, locations ...string) (*Client, error) {
 
 	}
 
-	c.locations = make(map[*regexp.Regexp]bool, len(locations))
+	c.locations = make([]*regexp.Regexp, 0, len(locations))
 
 	for _, l := range locations {
 		var r *regexp.Regexp
+
+		c.log.Printf("[DEBUG] Add regexp %s\n", l)
 
 		if r, err = regexp.Compile(l); err != nil {
 			c.log.Printf("[ERROR] Cannot compile Regexp %q: %s\n",
@@ -87,8 +89,11 @@ func New(proxy string, locations ...string) (*Client, error) {
 			return nil, err
 		}
 
-		c.locations[r] = true
+		c.locations = append(c.locations, r)
 	}
+
+	c.log.Printf("[DEBUG] Client has %d regular expressions for matching locations\n",
+		len(c.locations))
 
 	return c, nil
 } // func New(proxy string) (*Client, error)
@@ -113,8 +118,11 @@ func (c *Client) ProcessWarnings(raw []byte) ([]Warning, error) {
 	for _, i := range info.Warnings {
 	W_ITEM:
 		for _, w := range i {
-			for l := range c.locations {
-				if l.MatchString(w.Location) {
+			for _, l := range c.locations {
+				if m := l.FindString(w.Location); m != "" {
+					c.log.Printf("[DEBUG] Found Match for %s: %s\n",
+						l,
+						w.Location)
 					list = append(list, w)
 					continue W_ITEM
 				}
@@ -125,8 +133,11 @@ func (c *Client) ProcessWarnings(raw []byte) ([]Warning, error) {
 	for _, i := range info.PrelimWarnings {
 	V_ITEM:
 		for _, w := range i {
-			for l := range c.locations {
-				if l.MatchString(w.Location) {
+			for _, l := range c.locations {
+				if m := l.FindString(w.Location); m != "" {
+					c.log.Printf("[DEBUG] Found Match for %s: %s\n",
+						l,
+						w.Location)
 					list = append(list, w)
 					continue V_ITEM
 				}
@@ -135,7 +146,7 @@ func (c *Client) ProcessWarnings(raw []byte) ([]Warning, error) {
 	}
 
 	return list, nil
-} // func ProcessWarnings(raw []byte) ([]Warning, error)
+} // func (c *Client) ProcessWarnings(raw []byte) ([]Warning, error)
 
 // FetchWarning fetches the warning data from the DWD's web service.
 func (c *Client) FetchWarning() ([]byte, error) {

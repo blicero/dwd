@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 24. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-24 22:27:56 krylon>
+// Time-stamp: <2021-07-25 17:18:42 krylon>
 
 package data
 
@@ -46,6 +46,15 @@ func TestParseJSON(t *testing.T) {
 				"Elbe von Hamburg bis Cuxhaven",
 				"Helgoland",
 				"Kreis Berchtesgadener Land",
+			},
+		},
+		parseTestCase{
+			path: "testdata/warnings.4.json",
+			expectLocations: []string{
+				"Kreis und Stadt Passau",
+				"Altmarkkreis Salzwedel",
+				"Kreis Rostock - Küste",
+				"Kreis Altötting",
 			},
 		},
 	}
