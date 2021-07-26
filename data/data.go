@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 24. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-26 21:04:57 krylon>
+// Time-stamp: <2021-07-26 22:32:50 krylon>
 
 package data
 
@@ -42,3 +42,8 @@ type WeatherInfo struct {
 	PrelimWarnings map[int64][]Warning `json:"vorabInformation"`
 	Copyright      string              `json:"copyright"`
 }
+
+// TimeStamp returns the time the warnings were last updated.
+func (w *WeatherInfo) TimeStamp() time.Time {
+	return time.Unix(w.Time/1000, 0)
+} // func (w *WeatherInfo) TimeStamp() time.Time
