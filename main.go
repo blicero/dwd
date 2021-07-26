@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 24. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-26 18:52:05 krylon>
+// Time-stamp: <2021-07-27 00:04:36 krylon>
 
 package main
 
@@ -10,6 +10,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/blicero/dwd/common"
@@ -26,12 +28,9 @@ var locations = []string{
 const interval = time.Second * 60
 
 func main() {
-	fmt.Printf("%s: Implement me!\n", common.AppName)
-
 	var (
-		err      error
-		client   *data.Client
-		warnings []data.Warning
+		err    error
+		client *data.Client
 	)
 
 	flag.Parse()
@@ -46,29 +45,36 @@ func main() {
 		os.Exit(1)
 	}
 
-	for {
-		if warnings, err = client.GetWarnings(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting warnings: %s\n",
-				err.Error())
-			goto WAIT
-		}
+	client.Start()
 
-		for _, w := range warnings {
+	var (
+		ticker = time.NewTicker(time.Second * 10)
+		idMap  = make(map[int64]bool)
+		sigQ   = make(chan os.Signal, 1)
+	)
+
+	signal.Notify(sigQ, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
+
+	for client.IsActive() {
+		select {
+		case <-ticker.C:
+			// ...
+		case <-sigQ:
+			fmt.Println("Quitting because of signal")
+			//os.Exit(0)
+			client.Stop()
+		case w := <-client.WarnQueue:
+			if idMap[w.ID] {
+				continue
+			}
+			idMap[w.ID] = true
 			var p = w.Period()
-
-			fmt.Printf("Warnung für %s von %s bis %s: %s\n",
+			fmt.Printf("Warnung %d für %s von %s bis %s: %s\n",
+				w.ID,
 				w.Location,
 				p[0].Format(common.TimestampFormatMinute),
 				p[1].Format(common.TimestampFormatMinute),
 				w.Event)
-			// fmt.Printf("Warning for %s: %s\n%s\n\n%s\n====================================\n",
-			// 	w.Location,
-			// 	w.Event,
-			// 	w.Description,
-			// 	w.Instruction)
 		}
-
-	WAIT:
-		time.Sleep(interval)
 	}
 }
