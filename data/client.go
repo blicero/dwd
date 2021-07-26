@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-25 00:55:05 krylon>
+// Time-stamp: <2021-07-26 12:30:44 krylon>
 
 // Package data implements the client to the DWD's web service, it fetches and
 // processes the warning data.
@@ -29,7 +29,7 @@ const warnURL = "https://www.dwd.de/DWD/warnungen/warnapp/json/warnings.json"
 // The response from the DWD's web service looks like this:
 // warnWetter.loadWarnings({"time":1627052765000,"warnings":{},"vorabInformation":{},"copyright":"Copyright Deutscher Wetterdienst"});
 
-var respPattern = regexp.MustCompile(`^warnWetter.loadWarnings\((.*)\);$`)
+var respPattern = regexp.MustCompile(`^warnWetter.loadWarnings\((.*)\);`)
 
 // Client implements the communication with the DWD's web service and the handling of the response.
 type Client struct {
@@ -50,7 +50,7 @@ func New(proxy string, locations ...string) (*Client, error) {
 		return nil, err
 	}
 
-	c.client.Timeout = time.Second * 30
+	c.client.Timeout = time.Second * 90
 
 	if proxy != "" {
 		var u *url.URL
@@ -152,7 +152,6 @@ func (c *Client) ProcessWarnings(raw []byte) ([]Warning, error) {
 func (c *Client) FetchWarning() ([]byte, error) {
 	var (
 		err error
-		n   int64
 		res *http.Response
 		buf bytes.Buffer
 	)
@@ -172,7 +171,7 @@ func (c *Client) FetchWarning() ([]byte, error) {
 		return nil, fmt.Errorf("HTTP Request to %q failed: %s",
 			warnURL,
 			res.Status)
-	} else if n, err = io.Copy(&buf, res.Body); err != nil {
+	} else if _, err = io.Copy(&buf, res.Body); err != nil {
 		c.log.Printf("[ERROR] Cannot read response Body for %q: %s\n",
 			warnURL,
 			err.Error())
@@ -189,10 +188,10 @@ func (c *Client) FetchWarning() ([]byte, error) {
 
 	var match [][]byte
 
-	if match = respPattern.FindSubmatch(body[:n]); match == nil {
+	if match = respPattern.FindSubmatch(body); match == nil {
 		err = fmt.Errorf("Cannot parse response from %q: %q",
 			warnURL,
-			body[:n])
+			body)
 		c.log.Printf("[ERROR] %s\n", err.Error())
 		return nil, err
 	}
@@ -204,3 +203,25 @@ func (c *Client) FetchWarning() ([]byte, error) {
 
 	return data, nil
 } // func (c *Client) FetchWarning() ([]byte, error)
+
+// GetWarnings loads the current warnings from the DWD and returns all warnings
+// matching its list of locations.
+func (c *Client) GetWarnings() ([]Warning, error) {
+	var (
+		err      error
+		rawData  []byte
+		warnings []Warning
+	)
+
+	if rawData, err = c.FetchWarning(); err != nil {
+		c.log.Printf("[ERROR] Failed to fetch data from DWD: %s\n",
+			err.Error())
+		return nil, err
+	} else if warnings, err = c.ProcessWarnings(rawData); err != nil {
+		c.log.Printf("[ERROR] Failed to process Warnings: %s\n",
+			err.Error())
+		return nil, err
+	}
+
+	return warnings, nil
+} // func (c *Client) GetWarnings() ([]Warning, error)
