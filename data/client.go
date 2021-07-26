@@ -98,56 +98,6 @@ func New(proxy string, locations ...string) (*Client, error) {
 	return c, nil
 } // func New(proxy string) (*Client, error)
 
-// ProcessWarnings parses the warnings returned by the DWD's web service and
-// returns a list of all the warnings that are relevant to us.
-func (c *Client) ProcessWarnings(raw []byte) ([]Warning, error) {
-	var (
-		err  error
-		info WeatherInfo
-	)
-
-	if err = json.Unmarshal(raw, &info); err != nil {
-		c.log.Printf("[ERROR] Cannot parse JSON data: %s\n%s\n",
-			err.Error(),
-			raw)
-		return nil, err
-	}
-
-	var list = make([]Warning, 0, len(c.locations)*2)
-
-	for _, i := range info.Warnings {
-	W_ITEM:
-		for _, w := range i {
-			for _, l := range c.locations {
-				if m := l.FindString(w.Location); m != "" {
-					// c.log.Printf("[DEBUG] Found Match for %s: %s\n",
-					// 	l,
-					// 	w.Location)
-					list = append(list, w)
-					continue W_ITEM
-				}
-			}
-		}
-	}
-
-	for _, i := range info.PrelimWarnings {
-	V_ITEM:
-		for _, w := range i {
-			for _, l := range c.locations {
-				if m := l.FindString(w.Location); m != "" {
-					c.log.Printf("[DEBUG] Found Match for %s: %s\n",
-						l,
-						w.Location)
-					list = append(list, w)
-					continue V_ITEM
-				}
-			}
-		}
-	}
-
-	return list, nil
-} // func (c *Client) ProcessWarnings(raw []byte) ([]Warning, error)
-
 // FetchWarning fetches the warning data from the DWD's web service.
 func (c *Client) FetchWarning() ([]byte, error) {
 	var (
@@ -203,6 +153,58 @@ func (c *Client) FetchWarning() ([]byte, error) {
 
 	return data, nil
 } // func (c *Client) FetchWarning() ([]byte, error)
+
+// ProcessWarnings parses the warnings returned by the DWD's web service and
+// returns a list of all the warnings that are relevant to us.
+func (c *Client) ProcessWarnings(raw []byte) ([]Warning, error) {
+	var (
+		err  error
+		info WeatherInfo
+	)
+
+	if err = json.Unmarshal(raw, &info); err != nil {
+		c.log.Printf("[ERROR] Cannot parse JSON data: %s\n%s\n",
+			err.Error(),
+			raw)
+		return nil, err
+	}
+
+	var list = make([]Warning, 0, len(c.locations)*2)
+
+	for id, i := range info.Warnings {
+	W_ITEM:
+		for _, w := range i {
+			for _, l := range c.locations {
+				if m := l.FindString(w.Location); m != "" {
+					// c.log.Printf("[DEBUG] Found Match for %s: %s\n",
+					// 	l,
+					// 	w.Location)
+					w.ID = id
+					list = append(list, w)
+					continue W_ITEM
+				}
+			}
+		}
+	}
+
+	for id, i := range info.PrelimWarnings {
+	V_ITEM:
+		for _, w := range i {
+			for _, l := range c.locations {
+				if m := l.FindString(w.Location); m != "" {
+					c.log.Printf("[DEBUG] Found Match for %s: %s\n",
+						l,
+						w.Location)
+					w.ID = id
+					list = append(list, w)
+					continue V_ITEM
+				}
+			}
+		}
+	}
+
+	return list, nil
+} // func (c *Client) ProcessWarnings(raw []byte) ([]Warning, error)
 
 // GetWarnings loads the current warnings from the DWD and returns all warnings
 // matching its list of locations.
