@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-26 19:10:58 krylon>
+// Time-stamp: <2021-07-27 00:03:35 krylon>
 
 // Package data implements the client to the DWD's web service, it fetches and
 // processes the warning data.
@@ -18,24 +18,36 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"sync"
 	"time"
 
 	"github.com/blicero/dwd/common"
 	"github.com/blicero/dwd/logdomain"
 )
 
-const warnURL = "https://www.dwd.de/DWD/warnungen/warnapp/json/warnings.json"
+// The interval between checks is deliberately short for now to make testing
+// easier. Once we reach a stable state, we need to increase this interval to
+// something like 10 or 15 minutes.
+const (
+	warnURL       = "https://www.dwd.de/DWD/warnungen/warnapp/json/warnings.json"
+	checkInterval = time.Second * 30
+)
 
 // The response from the DWD's web service looks like this:
 // warnWetter.loadWarnings({"time":1627052765000,"warnings":{},"vorabInformation":{},"copyright":"Copyright Deutscher Wetterdienst"});
 
-var respPattern = regexp.MustCompile(`^warnWetter.loadWarnings\((.*)\);`)
+var respPattern = regexp.MustCompile(`^warnWetter[.]loadWarnings\((.*)\);`)
 
 // Client implements the communication with the DWD's web service and the handling of the response.
 type Client struct {
+	lastStamp int64
+	active    bool
+	lock      sync.RWMutex
 	log       *log.Logger
 	client    http.Client
 	locations []*regexp.Regexp
+	WarnQueue chan Warning
+	stopQueue chan int
 }
 
 // New creates a new Client. If proxy is a non-empty string, it is used as the
@@ -50,6 +62,8 @@ func New(proxy string, locations ...string) (*Client, error) {
 		return nil, err
 	}
 
+	c.WarnQueue = make(chan Warning, 8)
+	c.stopQueue = make(chan int)
 	c.client.Timeout = time.Second * 90
 
 	if proxy != "" {
@@ -128,15 +142,10 @@ func (c *Client) FetchWarning() ([]byte, error) {
 		return nil, err
 	}
 
-	var body = buf.Bytes()
-
-	// c.log.Printf("[DEBUG] Response from %s: %s (%d bytes of pure %s)\n",
-	// 	warnURL,
-	// 	res.Status,
-	// 	n,
-	// 	res.Header.Get("Content-Type"))
-
-	var match [][]byte
+	var (
+		body  = buf.Bytes()
+		match [][]byte
+	)
 
 	if match = respPattern.FindSubmatch(body); match == nil {
 		err = fmt.Errorf("Cannot parse response from %q: %q",
@@ -147,9 +156,6 @@ func (c *Client) FetchWarning() ([]byte, error) {
 	}
 
 	var data = match[1]
-
-	// c.log.Printf("[DEBUG] Received response from DWD: %s\n",
-	// 	data)
 
 	return data, nil
 } // func (c *Client) FetchWarning() ([]byte, error)
@@ -175,10 +181,7 @@ func (c *Client) ProcessWarnings(raw []byte) ([]Warning, error) {
 	W_ITEM:
 		for _, w := range i {
 			for _, l := range c.locations {
-				if m := l.FindString(w.Location); m != "" {
-					// c.log.Printf("[DEBUG] Found Match for %s: %s\n",
-					// 	l,
-					// 	w.Location)
+				if l.MatchString(w.Location) {
 					w.ID = id
 					list = append(list, w)
 					continue W_ITEM
@@ -191,10 +194,7 @@ func (c *Client) ProcessWarnings(raw []byte) ([]Warning, error) {
 	V_ITEM:
 		for _, w := range i {
 			for _, l := range c.locations {
-				if m := l.FindString(w.Location); m != "" {
-					c.log.Printf("[DEBUG] Found Match for %s: %s\n",
-						l,
-						w.Location)
+				if l.MatchString(w.Location) {
 					w.ID = id
 					list = append(list, w)
 					continue V_ITEM
@@ -227,3 +227,98 @@ func (c *Client) GetWarnings() ([]Warning, error) {
 
 	return warnings, nil
 } // func (c *Client) GetWarnings() ([]Warning, error)
+
+// IsActive returns the current state of the Client.
+func (c *Client) IsActive() bool {
+	c.lock.RLock()
+	var state = c.active
+	c.lock.RUnlock()
+	return state
+} // func (c *Client) IsActive() bool
+
+// Start creates a new goroutine running the Client's fetch loop.
+func (c *Client) Start() {
+	c.lock.Lock()
+	c.active = true
+	go c.Loop()
+	c.lock.Unlock()
+} // func (c *Client) Start()
+
+// Stop terminates the Client's fetch loop.
+func (c *Client) Stop() {
+	c.lock.Lock()
+	c.active = false
+	c.lock.Unlock()
+	c.stopQueue <- 1
+} // func (c *Client) Stop()
+
+// Loop is the Client's loop, intended to be run in a separate goroutine.
+// It regularly checks the DWD's warnings and feeds them to the WarnQueue
+func (c *Client) Loop() {
+	var ticker = time.NewTicker(checkInterval)
+
+	defer ticker.Stop()
+	defer close(c.WarnQueue)
+
+	for c.IsActive() {
+		select {
+		case <-ticker.C:
+			c.log.Println("[DEBUG] Check warnings")
+			c.checkWarnings()
+		case <-c.stopQueue:
+			return
+		}
+	}
+} // func (c *Client) Loop()
+
+func (c *Client) checkWarnings() {
+	var (
+		err  error
+		raw  []byte
+		info WeatherInfo
+	)
+
+	if raw, err = c.FetchWarning(); err != nil {
+		c.log.Printf("[ERROR] Cannot fetch warnings from DWD: %s\n",
+			err.Error())
+		return
+	} else if err = json.Unmarshal(raw, &info); err != nil {
+		c.log.Printf("[ERROR] Cannot parse JSON: %s\n",
+			err.Error())
+		return
+	} else if info.Time <= c.lastStamp {
+		c.log.Printf("[DEBUG] Data at %s has already been processed.\n",
+			info.TimeStamp().Format(common.TimestampFormatMinute))
+		return
+	}
+
+	c.log.Printf("[DEBUG] Process %d Warnings\n", len(info.Warnings))
+
+	for id, i := range info.Warnings {
+	W_ITEM:
+		for _, w := range i {
+			for _, l := range c.locations {
+				if l.MatchString(w.Location) {
+					w.ID = id
+					c.WarnQueue <- w
+					continue W_ITEM
+				}
+			}
+		}
+	}
+
+	c.log.Printf("[DEBUG] Process %d preliminary Warnings\n", len(info.PrelimWarnings))
+
+	for id, i := range info.PrelimWarnings {
+	V_ITEM:
+		for _, w := range i {
+			for _, l := range c.locations {
+				if l.MatchString(w.Location) {
+					w.ID = id
+					c.WarnQueue <- w
+					continue V_ITEM
+				}
+			}
+		}
+	}
+} // func (c *Client) checkWarnings()
