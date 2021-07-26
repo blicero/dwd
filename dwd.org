@@ -1,5 +1,5 @@
 # -*- mode: org; fill-column: 78; -*-
-# Time-stamp: <2021-07-25 17:22:32 krylon>
+# Time-stamp: <2021-07-27 00:11:21 krylon>
 #
 #+TAGS: optimize(o) refactor(r) bug(b) feature(f) architecture(a)
 #+TAGS: web(w) database(d) javascript(j)
@@ -12,25 +12,45 @@
   Wetterdienst and display them to the user in some way.
 ** Clocktable
    #+BEGIN: clocktable :scope file :maxlevel 20
-   #+CAPTION: Clock summary at [2021-07-25 So 17:22]
-   | Headline     | Time    |       |
-   |--------------+---------+-------|
-   | *Total time* | *14:44* |       |
-   |--------------+---------+-------|
-   | DWD          | 14:44   |       |
-   | \_  Client   |         | 14:44 |
+   #+CAPTION: Clock summary at [2021-07-27 Di 00:11]
+   | Headline           | Time    |       |      |
+   |--------------------+---------+-------+------|
+   | *Total time*       | *19:56* |       |      |
+   |--------------------+---------+-------+------|
+   | DWD                | 19:56   |       |      |
+   | \_  Client         |         | 18:28 |      |
+   | \_  User interface |         |  1:28 |      |
+   | \_    fyne         |         |       | 1:27 |
    #+END:
 ** Client
    :LOGBOOK:
+   CLOCK: [2021-07-26 Mo 21:02]--[2021-07-27 Di 00:11] =>  3:09
+   CLOCK: [2021-07-26 Mo 18:50]--[2021-07-26 Mo 19:25] =>  0:35
    CLOCK: [2021-07-25 So 16:22]--[2021-07-25 So 17:22] =>  1:00
    CLOCK: [2021-07-24 Sa 19:14]--[2021-07-24 Sa 22:48] =>  3:34
    CLOCK: [2021-07-24 Sa 16:20]--[2021-07-24 Sa 18:23] =>  2:03
    CLOCK: [2021-07-24 Sa 09:55]--[2021-07-24 Sa 10:45] =>  0:50
    CLOCK: [2021-07-23 Fr 17:40]--[2021-07-24 Sa 00:57] =>  7:17
    :END:
-   
+   Before I start working on the UI, I need to refine my data model, I
+   think. Warnings have something akin to IDs, I think, I think I can use
+   those to keep track of warnings so I don't re-display them.
 ** Database
    In the long term, I want to store weather warnings, even though I don't
    know yet what I would do with that information.
 ** User interface
-
+   :LOGBOOK:
+   CLOCK: [2021-07-26 Mo 19:33]--[2021-07-26 Mo 19:34] =>  0:01
+   :END:
+   I'm not sure, yet, what kind of UI I want, and I'm thinking I might just
+   implement several and allow the user to choose one via a command line
+   switch.
+   But for starters, I'll try my luck with fyne.
+*** fyne
+    :LOGBOOK:
+    CLOCK: [2021-07-26 Mo 19:34]--[2021-07-26 Mo 21:01] =>  1:27
+    :END:
+    I want to build a GUI, something I have almost no experience with in Go. I
+    have built a simple countdown timer with fyne, I liked the API, but the
+    library feels kind of spartan, so I might have to investigate other
+    options of building GUIs in Go.
