@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 24. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-26 12:58:31 krylon>
+// Time-stamp: <2021-07-26 21:04:57 krylon>
 
 package data
 
@@ -10,6 +10,7 @@ import "time"
 
 // Warning represents a weather warning for a specific location and time.
 type Warning struct {
+	ID            int64
 	Location      string `json:"regionName"`
 	Start         int64  `json:"start"`
 	End           int64  `json:"end"`
@@ -25,6 +26,8 @@ type Warning struct {
 	AltitudeEnd   int64  `json:"altitudeEnd"`
 }
 
+// Period returns the timespan the warnings is issued for, as a 2-element array.
+// Index 0 is the starting time, index 1 the end.
 func (w *Warning) Period() [2]time.Time {
 	return [2]time.Time{
 		time.Unix(w.Start/1000, 0),
