@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 24. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-26 12:42:25 krylon>
+// Time-stamp: <2021-07-26 18:52:05 krylon>
 
 package main
 
@@ -54,11 +54,18 @@ func main() {
 		}
 
 		for _, w := range warnings {
-			fmt.Printf("Warning for %s: %s\n%s\n\n%s\n====================================\n",
+			var p = w.Period()
+
+			fmt.Printf("Warnung für %s von %s bis %s: %s\n",
 				w.Location,
-				w.Event,
-				w.Description,
-				w.Instruction)
+				p[0].Format(common.TimestampFormatMinute),
+				p[1].Format(common.TimestampFormatMinute),
+				w.Event)
+			// fmt.Printf("Warning for %s: %s\n%s\n\n%s\n====================================\n",
+			// 	w.Location,
+			// 	w.Event,
+			// 	w.Description,
+			// 	w.Instruction)
 		}
 
 	WAIT:

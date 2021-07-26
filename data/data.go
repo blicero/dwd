@@ -2,9 +2,11 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 24. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-24 16:29:50 krylon>
+// Time-stamp: <2021-07-26 12:58:31 krylon>
 
 package data
+
+import "time"
 
 // Warning represents a weather warning for a specific location and time.
 type Warning struct {
@@ -22,6 +24,13 @@ type Warning struct {
 	AltitudeStart int64  `json:"altitudeStart"`
 	AltitudeEnd   int64  `json:"altitudeEnd"`
 }
+
+func (w *Warning) Period() [2]time.Time {
+	return [2]time.Time{
+		time.Unix(w.Start/1000, 0),
+		time.Unix(w.End/1000, 0),
+	}
+} // func (w *Warning) Period() [2]time.Time
 
 // WeatherInfo represetns an aggregate of warnings issued by the DWD at a given time.
 type WeatherInfo struct {

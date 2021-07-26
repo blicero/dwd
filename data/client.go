@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-26 12:30:44 krylon>
+// Time-stamp: <2021-07-26 19:10:58 krylon>
 
 // Package data implements the client to the DWD's web service, it fetches and
 // processes the warning data.
@@ -120,9 +120,9 @@ func (c *Client) ProcessWarnings(raw []byte) ([]Warning, error) {
 		for _, w := range i {
 			for _, l := range c.locations {
 				if m := l.FindString(w.Location); m != "" {
-					c.log.Printf("[DEBUG] Found Match for %s: %s\n",
-						l,
-						w.Location)
+					// c.log.Printf("[DEBUG] Found Match for %s: %s\n",
+					// 	l,
+					// 	w.Location)
 					list = append(list, w)
 					continue W_ITEM
 				}
