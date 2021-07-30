@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 01. 02. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-24 18:35:45 krylon>
+// Time-stamp: <2021-07-29 22:55:54 krylon>
 
 // +build ignore
 
@@ -70,11 +70,15 @@ var candidates = map[string][]string{
 		"common",
 		"data",
 		"logdomain",
+		"ui/fyne",
+		"ui/gtk3",
 	},
 	"lint": []string{
 		"common",
 		"data",
 		"logdomain",
+		"ui/fyne",
+		"ui/gtk3",
 	},
 }
 
@@ -235,7 +239,8 @@ This flag is not case-sensitive.`, strings.Join(orderedSteps, ", ")))
 
 		// Build the program itself:
 		var sWorkerCnt = strconv.FormatInt(int64(workerCnt), 10)
-		var cmd = exec.Command("go", "build", "-v", "-p", sWorkerCnt)
+		// The -tags flag is required so the build will succeed on Debian.
+		var cmd = exec.Command("go", "build", "-v", "-tags", "pango_1_42,gtk_3_22", "-p", sWorkerCnt)
 		if output, err = cmd.CombinedOutput(); err != nil {
 			dbg.Printf("[ERROR] Error building %s: %s\n%s\n",
 				appName,
@@ -362,9 +367,9 @@ func worker(n int, op string, pkgq <-chan string, errq chan<- error, wg *sync.Wa
 			// 	pkg)
 		} else if op == "test" {
 			if runtime.GOOS == "openbsd" || runtime.GOARCH == "386" || runtime.GOARCH == "arm" {
-				cmd = exec.Command("go", op, "-v", "-timeout", "30m", pkg)
+				cmd = exec.Command("go", op, "-v", "-timeout", "30m", "-tags", "pango_1_42,gtk_3_22", pkg)
 			} else {
-				cmd = exec.Command("go", op, "-v", "-timeout", "30m", "-race", pkg)
+				cmd = exec.Command("go", op, "-v", "-timeout", "30m", "-race", "-tags", "pango_1_42,gtk_3_22", pkg)
 			}
 		} else {
 			cmd = exec.Command("go", op, "-v", pkg)

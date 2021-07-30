@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-23 17:25:23 krylon>
+// Time-stamp: <2021-07-27 02:13:19 krylon>
 
 // Package logdomain provides constants to identify the different
 // "areas" of the application that perform logging.
@@ -19,6 +19,7 @@ const (
 	Client
 	DBPool
 	Database
+	GUI
 	Web
 )
 
@@ -29,6 +30,7 @@ func AllDomains() []ID {
 		Client,
 		DBPool,
 		Database,
+		GUI,
 		Web,
 	}
 } // func AllDomains() []ID

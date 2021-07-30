@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 23. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-27 00:03:35 krylon>
+// Time-stamp: <2021-07-27 21:33:28 krylon>
 
 // Package data implements the client to the DWD's web service, it fetches and
 // processes the warning data.
@@ -40,14 +40,15 @@ var respPattern = regexp.MustCompile(`^warnWetter[.]loadWarnings\((.*)\);`)
 
 // Client implements the communication with the DWD's web service and the handling of the response.
 type Client struct {
-	lastStamp int64
-	active    bool
-	lock      sync.RWMutex
-	log       *log.Logger
-	client    http.Client
-	locations []*regexp.Regexp
-	WarnQueue chan Warning
-	stopQueue chan int
+	lastStamp    int64
+	active       bool
+	lock         sync.RWMutex
+	log          *log.Logger
+	client       http.Client
+	locations    []*regexp.Regexp
+	WarnQueue    chan Warning
+	refreshQueue chan int
+	stopQueue    chan int
 }
 
 // New creates a new Client. If proxy is a non-empty string, it is used as the
@@ -64,6 +65,7 @@ func New(proxy string, locations ...string) (*Client, error) {
 
 	c.WarnQueue = make(chan Warning, 8)
 	c.stopQueue = make(chan int)
+	c.refreshQueue = make(chan int)
 	c.client.Timeout = time.Second * 90
 
 	if proxy != "" {
@@ -252,6 +254,11 @@ func (c *Client) Stop() {
 	c.stopQueue <- 1
 } // func (c *Client) Stop()
 
+// Refresh forces the Client to fetch the latest warnings from the DWD.
+func (c *Client) Refresh() {
+	c.refreshQueue <- 1
+} // func (c *Client) Refresh()
+
 // Loop is the Client's loop, intended to be run in a separate goroutine.
 // It regularly checks the DWD's warnings and feeds them to the WarnQueue
 func (c *Client) Loop() {
@@ -264,6 +271,9 @@ func (c *Client) Loop() {
 		select {
 		case <-ticker.C:
 			c.log.Println("[DEBUG] Check warnings")
+			c.checkWarnings()
+		case <-c.refreshQueue:
+			c.log.Println("[DEBUG] User requested refresh")
 			c.checkWarnings()
 		case <-c.stopQueue:
 			return
@@ -291,6 +301,8 @@ func (c *Client) checkWarnings() {
 			info.TimeStamp().Format(common.TimestampFormatMinute))
 		return
 	}
+
+	c.lastStamp = info.Time
 
 	c.log.Printf("[DEBUG] Process %d Warnings\n", len(info.Warnings))
 

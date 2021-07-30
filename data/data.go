@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 24. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-26 22:32:50 krylon>
+// Time-stamp: <2021-07-30 13:51:25 krylon>
 
 package data
 
@@ -34,6 +34,23 @@ func (w *Warning) Period() [2]time.Time {
 		time.Unix(w.End/1000, 0),
 	}
 } // func (w *Warning) Period() [2]time.Time
+
+// WarningList is a helper type used for sorting Warnings.
+type WarningList []Warning
+
+func (wl WarningList) Len() int      { return len(wl) }
+func (wl WarningList) Swap(i, j int) { wl[i], wl[j] = wl[j], wl[i] }
+func (wl WarningList) Less(i, j int) bool {
+	var w1, w2 *Warning
+	w1 = &wl[i]
+	w2 = &wl[j]
+
+	if w1.Location == w2.Location {
+		return w1.Start < w2.Start
+	}
+
+	return w1.Location < w2.Location
+} // func (wl WarningList) Less(i, j int) bool
 
 // WeatherInfo represetns an aggregate of warnings issued by the DWD at a given time.
 type WeatherInfo struct {
