@@ -1,5 +1,5 @@
 # -*- mode: org; fill-column: 78; -*-
-# Time-stamp: <2021-07-30 18:04:27 krylon>
+# Time-stamp: <2021-08-01 14:28:44 krylon>
 #
 #+TAGS: optimize(o) refactor(r) bug(b) feature(f) architecture(a)
 #+TAGS: web(w) database(d) javascript(j)
@@ -12,16 +12,16 @@
   Wetterdienst and display them to the user in some way.
 ** Clocktable
    #+BEGIN: clocktable :scope file :maxlevel 20
-   #+CAPTION: Clock summary at [2021-07-30 Fr 18:04]
+   #+CAPTION: Clock summary at [2021-08-01 So 14:28]
    | Headline           | Time      |       |      |
    |--------------------+-----------+-------+------|
-   | *Total time*       | *1d 6:07* |       |      |
+   | *Total time*       | *1d 6:56* |       |      |
    |--------------------+-----------+-------+------|
-   | DWD                | 1d 6:07   |       |      |
+   | DWD                | 1d 6:56   |       |      |
    | \_  Client         |           | 19:14 |      |
-   | \_  User interface |           | 10:53 |      |
+   | \_  User interface |           | 11:42 |      |
    | \_    fyne         |           |       | 7:34 |
-   | \_    Gtk3         |           |       | 3:18 |
+   | \_    Gtk3         |           |       | 4:07 |
    #+END:
 ** Client
    :LOGBOOK:
@@ -71,6 +71,7 @@
     weak to support fyne. So there.
 *** Gtk3
     :LOGBOOK:
+    CLOCK: [2021-08-01 So 00:26]--[2021-08-01 So 01:15] =>  0:49
     CLOCK: [2021-07-30 Fr 16:16]--[2021-07-30 Fr 18:04] =>  1:48
     CLOCK: [2021-07-27 Di 22:16]--[2021-07-27 Di 23:46] =>  1:30
     :END:
