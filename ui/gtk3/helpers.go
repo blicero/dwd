@@ -2,11 +2,13 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 30. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-30 17:19:24 krylon>
+// Time-stamp: <2021-08-01 14:29:06 krylon>
 
 package gtk3
 
-import "github.com/gotk3/gotk3/gtk"
+import (
+	"github.com/gotk3/gotk3/gtk"
+)
 
 func createCol(title string, id int) (*gtk.TreeViewColumn, error) {
 	renderer, err := gtk.CellRendererTextNew()

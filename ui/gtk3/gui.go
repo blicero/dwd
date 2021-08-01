@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 29. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-30 18:01:18 krylon>
+// Time-stamp: <2021-08-01 14:29:41 krylon>
 
 // Package gtk3 provides a gtk3-based GUI.
 // Getting gotk3 to compile cleanly across multiple platforms has been kind of
@@ -11,7 +11,7 @@ package gtk3
 
 import (
 	"log"
-	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,11 +22,12 @@ import (
 	"github.com/gotk3/gotk3/gtk"
 )
 
-const refInterval = time.Second * 5
+const refInterval = time.Second * 10
 
 const (
 	cidLocation = iota
 	cidEvent
+	cidLevel
 	cidStart
 	cidEnd
 )
@@ -35,8 +36,7 @@ const (
 type GUI struct {
 	log         *log.Logger
 	lock        sync.RWMutex
-	warnMap     map[int64]bool
-	warnings    []data.Warning
+	warnMap     map[string]data.Warning
 	updateStamp time.Time
 	renderStamp time.Time
 	client      *data.Client
@@ -45,6 +45,7 @@ type GUI struct {
 	refB        *gtk.Button
 	wView       *gtk.TreeView
 	wStore      *gtk.ListStore
+	wSort       *gtk.TreeModelSort
 	wScr        *gtk.ScrolledWindow
 }
 
@@ -73,11 +74,21 @@ func MakeGUI(c *data.Client) (*GUI, error) {
 		g.log.Printf("[ERROR] Cannot create Gtk Button: %s\n",
 			err.Error())
 		return nil, err
-	} else if g.wStore, err = gtk.ListStoreNew(glib.TYPE_STRING, glib.TYPE_STRING, glib.TYPE_STRING, glib.TYPE_STRING); err != nil {
+	} else if g.wStore, err = gtk.ListStoreNew(
+		glib.TYPE_STRING, // Location
+		glib.TYPE_STRING, // Event
+		glib.TYPE_INT,    // Level
+		glib.TYPE_STRING, // Start
+		glib.TYPE_STRING, // End
+	); err != nil {
 		g.log.Printf("[ERROR] Cannot create ListStore: %s\n",
 			err.Error())
 		return nil, err
-	} else if g.wView, err = gtk.TreeViewNewWithModel(g.wStore); err != nil {
+	} else if g.wSort, err = gtk.TreeModelSortNew(g.wStore); err != nil {
+		g.log.Printf("[ERROR] Cannot create TreeModelSort: %s\n",
+			err.Error())
+		return nil, err
+	} else if g.wView, err = gtk.TreeViewNewWithModel(g.wSort); err != nil {
 		g.log.Printf("[ERROR] Cannot create TreeView: %s\n",
 			err.Error())
 		return nil, err
@@ -87,7 +98,11 @@ func MakeGUI(c *data.Client) (*GUI, error) {
 		return nil, err
 	}
 
-	var cLocation, cEvent, cStart, cEnd *gtk.TreeViewColumn
+	g.win.Stick()
+
+	g.wSort.SetDefaultSortFunc(g.cmpWarnings)
+
+	var cLocation, cEvent, cLevel, cStart, cEnd *gtk.TreeViewColumn
 
 	if cLocation, err = createCol("Ort", cidLocation); err != nil {
 		g.log.Printf("[ERROR] Cannot create TreeViewColumn for Location: %s\n",
@@ -95,6 +110,10 @@ func MakeGUI(c *data.Client) (*GUI, error) {
 		return nil, err
 	} else if cEvent, err = createCol("Ereignis", cidEvent); err != nil {
 		g.log.Printf("[ERROR] Cannot create TreeViewColumn for Event: %s\n",
+			err.Error())
+		return nil, err
+	} else if cLevel, err = createCol("Warnstufe", cidLevel); err != nil {
+		g.log.Printf("[ERROR] Cannot create TreeViewColumn for Warnstufe: %s\n",
 			err.Error())
 		return nil, err
 	} else if cStart, err = createCol("Von", cidStart); err != nil {
@@ -109,15 +128,17 @@ func MakeGUI(c *data.Client) (*GUI, error) {
 
 	cLocation.SetVisible(true)
 	cEvent.SetVisible(true)
+	cLevel.SetVisible(true)
 	cStart.SetVisible(true)
 	cEnd.SetVisible(true)
 
 	g.wView.AppendColumn(cLocation)
 	g.wView.AppendColumn(cEvent)
+	g.wView.AppendColumn(cLevel)
 	g.wView.AppendColumn(cStart)
 	g.wView.AppendColumn(cEnd)
 
-	g.warnMap = make(map[int64]bool)
+	g.warnMap = make(map[string]data.Warning)
 
 	g.win.Connect("destroy", gtk.MainQuit)
 	g.refB.Connect("clicked", g.refresh)
@@ -143,13 +164,11 @@ func (g *GUI) timeoutHandler() bool {
 	g.lock.RLock()
 	defer g.lock.RUnlock()
 
-	// g.log.Println("[DEBUG] timeoutHandler")
-
 	if g.renderStamp.Before(g.updateStamp) {
-		g.log.Printf("[DEBUG] Update Label (%d warnings)\n", len(g.warnings))
+		g.log.Printf("[DEBUG] Update Label (%d warnings)\n", len(g.warnMap))
 		g.wStore.Clear()
 
-		for _, w := range g.warnings {
+		for _, w := range g.warnMap {
 			var (
 				err error
 				p   = w.Period()
@@ -158,10 +177,11 @@ func (g *GUI) timeoutHandler() bool {
 			var iter = g.wStore.Append()
 
 			if err = g.wStore.Set(iter,
-				[]int{0, 1, 2, 3},
+				[]int{0, 1, 2, 3, 4},
 				[]interface{}{
 					w.Location,
 					w.Event,
+					w.Level,
 					p[0].Format(common.TimestampFormatMinute),
 					p[1].Format(common.TimestampFormatMinute),
 				}); err != nil {
@@ -194,18 +214,74 @@ func (g *GUI) processWarning(w data.Warning) {
 	g.lock.Lock()
 	defer g.lock.Unlock()
 
-	if !g.warnMap[w.ID] {
+	if _, ok := g.warnMap[w.GetUniqueID()]; !ok {
 		g.log.Printf("[DEBUG] Append new Warning: %s -> %s\n",
 			w.Location,
 			w.Event)
-		g.warnings = append(g.warnings, w)
-		g.warnMap[w.ID] = true
-
-		// g.wLbl.SetText(fmt.Sprintf("%s -> %s",
-		// 	w.Location,
-		// 	w.Event))
-
-		sort.Sort(data.WarningList(g.warnings))
+		g.warnMap[w.GetUniqueID()] = w
 		g.updateStamp = time.Now()
 	}
 } // func (g *GUI) processWarnings(w data.Warning)
+
+func (g *GUI) cmpWarnings(m *gtk.TreeModel, a, b *gtk.TreeIter) int {
+	var (
+		err    error
+		v1, v2 *glib.Value
+		l1, l2 string
+	)
+
+	if v1, err = m.GetValue(a, cidLocation); err != nil {
+		g.log.Printf("[ERROR] Cannot get TreeModel value %p: %s\n",
+			a,
+			err.Error())
+		return 0
+	} else if v2, err = m.GetValue(b, cidLocation); err != nil {
+		g.log.Printf("[ERROR] Cannot get TreeModel value %p: %s\n",
+			b,
+			err.Error())
+		return 0
+	} else if l1, err = v1.GetString(); err != nil {
+		g.log.Printf("[ERROR] Cannot get string value of %p: %s\n",
+			a,
+			err.Error())
+		return 0
+	} else if l2, err = v2.GetString(); err != nil {
+		g.log.Printf("[ERROR] Cannot get string value of %p: %s\n",
+			b,
+			err.Error())
+		return 0
+	}
+
+	switch strings.Compare(l1, l2) {
+	case -1:
+		return -1
+	case 0:
+		if v1, err = m.GetValue(a, 2); err != nil {
+			g.log.Printf("[ERROR] Cannot get string values of %p/2: %s\n",
+				a,
+				err.Error())
+			return 0
+		} else if v2, err = m.GetValue(b, 2); err != nil {
+			g.log.Printf("[ERROR] Cannot get string values of %p/2: %s\n",
+				b,
+				err.Error())
+			return 0
+		} else if l1, err = v1.GetString(); err != nil {
+			g.log.Printf("[ERROR] Cannot get String value of %p: %s\n",
+				a,
+				err.Error())
+			return 0
+		} else if l2, err = v2.GetString(); err != nil {
+			g.log.Printf("[ERROR] Cannot get String value of %p: %s\n",
+				b,
+				err.Error())
+			return 0
+		}
+
+		return strings.Compare(l1, l2)
+	case 1:
+		return 1
+	default:
+		return 0
+	}
+} // func cmpWarnings(m *gtk.TreeModel, a, b, *gtk.TreeIter) int

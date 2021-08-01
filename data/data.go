@@ -2,11 +2,14 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 24. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-07-30 13:51:25 krylon>
+// Time-stamp: <2021-08-01 01:04:04 krylon>
 
 package data
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Warning represents a weather warning for a specific location and time.
 type Warning struct {
@@ -24,16 +27,51 @@ type Warning struct {
 	StateShort    string `json:"stateShort"`
 	AltitudeStart int64  `json:"altitudeStart"`
 	AltitudeEnd   int64  `json:"altitudeEnd"`
+	t1            time.Time
+	t2            time.Time
+	uid           string
 }
+
+// TimeStart returns the Warning's Start time.
+func (w *Warning) TimeStart() time.Time {
+	if w.t1.IsZero() {
+		w.t1 = time.Unix(w.Start/1000, 0)
+	}
+
+	return w.t1
+} // func (w *Warning) TimeStart() time.Time
+
+// TimeEnd returns the Warning's End time.
+func (w *Warning) TimeEnd() time.Time {
+	if w.t2.IsZero() {
+		w.t2 = time.Unix(w.End/1000, 0)
+	}
+
+	return w.t2
+} // func (w *Warning) TimeEnd() time.Time
 
 // Period returns the timespan the warnings is issued for, as a 2-element array.
 // Index 0 is the starting time, index 1 the end.
 func (w *Warning) Period() [2]time.Time {
 	return [2]time.Time{
-		time.Unix(w.Start/1000, 0),
-		time.Unix(w.End/1000, 0),
+		w.TimeStart(),
+		w.TimeEnd(),
 	}
 } // func (w *Warning) Period() [2]time.Time
+
+// GetUniqueID returns a string value used for comparing the Warning
+// to determine if it is unique.
+func (w *Warning) GetUniqueID() string {
+	if w.uid == "" {
+		w.uid = fmt.Sprintf("%s/%s/%d/%d",
+			w.Location,
+			w.Event,
+			w.Start,
+			w.End)
+	}
+
+	return w.uid
+} // func (w *Warning) GetUniqueID() string
 
 // WarningList is a helper type used for sorting Warnings.
 type WarningList []Warning
