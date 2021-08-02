@@ -2,7 +2,7 @@
 // -*- mode: go; coding: utf-8; -*-
 // Created on 24. 07. 2021 by Benjamin Walkenhorst
 // (c) 2021 Benjamin Walkenhorst
-// Time-stamp: <2021-08-01 01:04:04 krylon>
+// Time-stamp: <2021-08-02 17:44:35 krylon>
 
 package data
 
@@ -63,11 +63,9 @@ func (w *Warning) Period() [2]time.Time {
 // to determine if it is unique.
 func (w *Warning) GetUniqueID() string {
 	if w.uid == "" {
-		w.uid = fmt.Sprintf("%s/%s/%d/%d",
+		w.uid = fmt.Sprintf("%s/%s",
 			w.Location,
-			w.Event,
-			w.Start,
-			w.End)
+			w.Event)
 	}
 
 	return w.uid
